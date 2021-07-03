@@ -1,0 +1,4 @@
+#ignore src all .db .cvs .txt .bmp .raw
+*.png
+/models/*
+*.pyc
