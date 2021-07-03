@@ -1,4 +1,4 @@
-# Image-match-system---pytorch
+# Image match system : pytorch
 
 This is a system to calculate image pairs similarity score.
 
