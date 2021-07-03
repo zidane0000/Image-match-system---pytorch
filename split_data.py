@@ -18,19 +18,19 @@ def copy_file(src, dst):
     try:
         shutil.copyfile(src, dst)
     except:
-        print("Copy %s to %s failed"%(src,dst))        
+        print("Copy %s to %s failed"%(src,dst))
 
 if __name__ == '__main__':
     np.random.seed(0)
-	Flags = gflags.FLAGS
+    Flags = gflags.FLAGS
     gflags.DEFINE_string("dataPath", None, "data folder")
     gflags.DEFINE_float("train_rate", 0.8, "training rate")
     Flags(sys.argv)
-	
+
     dataPath = Flags.dataPath
     train_rate = Flags.train_rate
-	
-	if Flags.train is None:
+
+    if Flags.dataPath is None:
         print("Error! No dataPath")
         sys.exit()
 
@@ -52,7 +52,7 @@ if __name__ == '__main__':
 
             # prepare folders
             train_dataPath = current_path + '/' + today + '/train/' + classPath
-            test_dataPath = current_path + '/' + today + '/test/' + classPath
+            test_dataPath = current_path + '/' + today + '/validation/' + classPath
             create_directorys(train_dataPath)
             create_directorys(test_dataPath)
 

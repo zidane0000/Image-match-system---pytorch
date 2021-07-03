@@ -69,12 +69,14 @@ class DatasetGenerate(Dataset):
 	# but in Case2, C(1000,2)=499500, will take too long in 1 epoch
 	# So you can design your best way to calculate len
     def __len__(self):
-        total_len = len(self.datas)
+        total_len = 0        
+        for data_key in self.datas:
+            total_len += len(self.datas[data_key])
         return  total_len
 
     def read_image(self, filePath):
         # 1. No Feature normalization
-        img = Image.open(filePath).convert('L')
+        # img = Image.open(filePath).convert('L')
 
         # 2.In Siamese networks for one shot learning
         # img = Image.open(filePath)
@@ -87,7 +89,7 @@ class DatasetGenerate(Dataset):
         # img = img / 255
 
         # 4. Read by RGB
-        # img = Image.open(filePath).convert('RGB')
+        img = Image.open(filePath).convert('RGB')
         return img
 
 	# In this case, same class pairs will define 0, vice versa

@@ -11,50 +11,50 @@ def structure_init(name):
         structure = resnet50
         out_features = structure.fc.out_features            
     elif name == 'pretrain_resnet152':
-		resnet152 = models.resnet152(pretrained=True)
-		structure = resnet152
-		out_features = structure.fc.out_features
+        resnet152 = models.resnet152(pretrained=True)
+        structure = resnet152
+        out_features = structure.fc.out_features
     elif name == 'pretrain_densenet121':
-		densenet121 = models.densenet121(pretrained=True)
-		structure = densenet121
-		out_features = structure.classifier.out_features		
+        densenet121 = models.densenet121(pretrained=True)
+        structure = densenet121
+        out_features = structure.classifier.out_features        
     elif name == 'pretrain_densenet121_freeze':
-		densenet121 = models.densenet121(pretrained=True)		
-		structure = densenet121
-		out_features = structure.classifier.out_features
-		
-	# if want freeze pretrain params
-	# for param in densenet121.parameters():
-	#		  param.requires_grad = False         
+        densenet121 = models.densenet121(pretrained=True)        
+        structure = densenet121
+        out_features = structure.classifier.out_features
+        
+    # if want freeze pretrain params
+    # for param in densenet121.parameters():
+    #          param.requires_grad = False         
       
     fully_connect = nn.Sequential(
-		nn.Linear(out_features, 4096),
-		nn.ReLU(),
-		nn.Dropout(),
-		nn.Linear(4096, 4096),
-		nn.ReLU(),
-		nn.Dropout(),
-		nn.Linear(4096, 1),
-		nn.Sigmoid(),
-	)
+        nn.Linear(out_features, 4096),
+        nn.ReLU(),
+        nn.Dropout(),
+        nn.Linear(4096, 4096),
+        nn.ReLU(),
+        nn.Dropout(),
+        nn.Linear(4096, 1),
+        nn.Sigmoid(),
+    )
     return structure, fully_connect
 
 class SiameseNetwork(nn.Module):
     def __init__(self, structure ='simple'):
-		super(SiameseNetwork, self).__init__()            
-		self.feature_extract, self.fully_connect = structure_init(structure)
-		
+        super(SiameseNetwork, self).__init__()            
+        self.feature_extract, self.fully_connect = structure_init(structure)
+        
     def forward(self, input1, input2):
-		output1 = self.feature_extract(input1)
-		output2 = self.feature_extract(input2)            
+        output1 = self.feature_extract(input1)
+        output2 = self.feature_extract(input2)            
 
-		# L1 norm
-		# dis = torch.abs(output1 - output2)		
-		# L2 norm
-		dis = torch.sqrt(torch.pow(output1 - output2, 2) + 1e-8)
-		
-		dis = torch.flatten(dis, 1)
-		out = self.fully_connect(dis)
+        # L1 norm
+        # dis = torch.abs(output1 - output2)        
+        # L2 norm
+        dis = torch.sqrt(torch.pow(output1 - output2, 2) + 1e-8)
+        
+        dis = torch.flatten(dis, 1)
+        out = self.fully_connect(dis)
         return out
 
 class ContrastiveLoss(torch.nn.Module):

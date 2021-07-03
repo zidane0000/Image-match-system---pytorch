@@ -17,9 +17,11 @@ import os
 from test import evaluation
 
 def PrintAndWrite(line):
-	path = 'train_log.txt'
-	with open(path, 'a') as f:
-		f.write(line)
+    print(line)
+    path = 'train_log.txt'
+    with open(path, 'a') as f:
+        f.write(line)
+        f.write("\n")
 
 if __name__ == '__main__':	
     Flags = gflags.FLAGS
@@ -32,7 +34,7 @@ if __name__ == '__main__':
     gflags.DEFINE_integer("epochs", 2, "number of train epochs")
     gflags.DEFINE_integer("workers", 4, "number of dataLoader workers")
     gflags.DEFINE_integer("batch_size", 128, "number of batch size")
-    gflags.DEFINE_integer("every_iter", 500, "show, test, save model every iter")
+    gflags.DEFINE_integer("every_iter", 10, "show, test, save model every iter")
     gflags.DEFINE_string("model_path", None, "path to store model, if none then don't save")
     gflags.DEFINE_string("gpu_ids", "0,1,2,3", "gpu ids used to train")
 
@@ -46,7 +48,7 @@ if __name__ == '__main__':
     AllDataSet = DatasetLoad(Flags.datas_path, train_rate = Flags.train_rate)
     train_datas, test_datas, num_classes = AllDataSet.dataWithSplit()
     train_dataGenerate = DatasetGenerate(train_datas, num_classes, transform=transforms.ToTensor())
-    test_dataGenerate = DatasetGenerate(test_datas, num_classes, transform=transforms.ToTensor(), isTest=True)
+    test_dataGenerate = DatasetGenerate(test_datas, num_classes, transform=transforms.ToTensor())
     trainLoader = DataLoader(train_dataGenerate, batch_size=Flags.batch_size, shuffle=False, num_workers=Flags.workers)
     testLoader = DataLoader(test_dataGenerate, batch_size=Flags.batch_size, shuffle=False, num_workers=Flags.workers)
 
@@ -75,6 +77,9 @@ if __name__ == '__main__':
     loss_val = 0
     time_start = time.time()
 
+    # Calculate one epoch how many iters
+    epoch_iters = len(trainLoader) - len(trainLoader) % Flags.every_iter
+
     for epoch in range(Flags.epochs):
         print('*'*70)
         print('Epoch[%d]:'%(epoch))
@@ -93,8 +98,8 @@ if __name__ == '__main__':
 
             if iteration_id % Flags.every_iter == 0 :
 				# Show
-				loss_val = loss_val/Flags.every_iter
-                PrintAndWrite('[%d]\tloss: %.6f\ttime lapsed: %.2f s'%(iteration_id, loss_val, time.time() - time_start))
+                loss_val = loss_val/Flags.every_iter
+                PrintAndWrite('[%d][%d]\tloss: %.6f\ttime lapsed: %.2f s'%(epoch, epoch_iters * epoch + iteration_id, loss_val, time.time() - time_start))
                 loss_val = 0
                 time_start = time.time()
 
@@ -129,19 +134,19 @@ if __name__ == '__main__':
 
                         test_acc = torch.mean(torch_abs)
                         test_acc_val += test_acc
-                far, frr, threshold, eer = evaluation(all_predict, all_testlabel, need_print=False)
+                threshold, far, frr, eer_posi, eer_value = evaluation(all_predict, all_testlabel)
                 test_loss_val = test_loss_val/len(testLoader)
                 test_acc_val = 1 - test_acc_val/len(testLoader)
-                PrintAndWrite('[%d]\tTest loss: %f\tTest acc : %f\t EER : %f'%(iteration_id, test_loss_val, test_acc_val, far[eer]))
+                PrintAndWrite('[%d][%d]\tTest loss: %f\tTest acc : %f\t EER : %f'%(epoch, epoch_iters * epoch + iteration_id, test_loss_val, test_acc_val, eer_value))
 
                 # change learning rate if loss up
                 scheduler.step(test_loss_val)
 				# ********** Test **********
 				                
                 # Save
-                if best_loss_val > test_loss_val:
-					best_loss_val = test_loss_val
-					torch.save(net.state_dict(), Flags.model_path + '/model-inter-' + str(iteration_id) + '-' + "{:.6f}".format(best_loss_val) + ".pt")
+                if (best_loss_val > test_loss_val) and (Flags.model_path != None):
+                    best_loss_val = test_loss_val
+                    torch.save(net.state_dict(), Flags.model_path + '/model-epoch-' + str(epoch) + '-inter-' + str(iteration_id) + '-' + "{:.6f}".format(best_loss_val) + ".pt")
 
                 time_start = test_time_start
         print('*'*70)

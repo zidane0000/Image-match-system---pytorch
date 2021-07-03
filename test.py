@@ -14,56 +14,58 @@ import numpy as np
 import gflags
 import sys
 import os
+import math
 
 # https://medium.com/@mustafaazzurri/face-recognition-system-and-calculating-frr-far-and-eer-for-biometric-system-evaluation-code-2ac2bd4fd2e5
 # Evaluate by FAR(False Acceptance Rate), FRR(False Rejection Rate) and EER(Equal Error Rate)
-def evaluation(predict, Y, need_print=True):
+def evaluation(predict, Y):
     # predict : predict value
     # Y : ground truth
     far = []
-	frr = []
-	eer_posi = float('nan')
-	eer_value = float('nan')
-	threshold = []	
-	for i in np.arange(0.0, 1.1, 0.01):
-		# Make sure your ground truth corresponding to the far and frr
-		# In this case, same pairs is 0, so false accept is Y==1
-		num_far = (np.sum((predict<=i) & (Y == 1)) / np.sum(Y==1)) * 100
-		num_frr = (np.sum((predict>=i) & (Y == 0)) / np.sum(Y==0)) * 100
+    frr = []
+    eer_posi = float('nan')
+    eer_value = float('nan')
+    threshold = []    
+    for i in np.arange(0.0, 1.1, 0.01):
+        # Make sure your ground truth corresponding to the far and frr
+        num_far = (np.sum((predict>=i) & (Y == 0)) / np.sum(Y==0)) * 100
+        num_frr = (np.sum((predict<=i) & (Y == 1)) / np.sum(Y==1)) * 100
 
-		far.append(num_far)
-		frr.append(num_frr)
-		threshold.append(i)
-		
-		if math.isnan(eer_posi) and (num_far == num_frr or num_far < num_frr):
-			eer_posi = i
-			eer_value = num_far
-			print(eer_posi)
-			print(eer_value)
+        far.append(num_far)
+        frr.append(num_frr)
+        threshold.append(i)
+        
+        if math.isnan(eer_posi) and (num_far == num_frr or num_far < num_frr):
+            eer_posi = i
+            eer_value = num_far
 
-	# Show result by figure
-	fig, ax = plt.subplots()
-	ax.plot(threshold, far, 'r--', label='FAR')
-	ax.plot(threshold, frr, 'b--', label='FRR')
-	plt.title('FAR and FRR')
-	plt.xlabel('Threshold')
-	plt.plot( eer_posi, eer_value,'ro', label='EER') 
-	plt.axis([0.0, 1.0, 0, 100])
-	legend = ax.legend(loc='upper center', shadow=True, fontsize='x-large')
-	plt.show()
+    return threshold, far, frr, eer_posi, eer_value
+
+
+def DrawEvaluation(threshold, far, frr, eer_posi, eer_value):
+    # Show result by figure
+    fig, ax = plt.subplots()
+    ax.plot(threshold, far, 'r--', label='FAR')
+    ax.plot(threshold, frr, 'b--', label='FRR')
+    plt.title('FAR and FRR')
+    plt.xlabel('Threshold')
+    plt.plot( eer_posi, eer_value,'ro', label='EER') 
+    plt.axis([0.0, 1.0, 0, 100])
+    legend = ax.legend(loc='upper center', shadow=True, fontsize='x-large')
+    plt.show()
     
 if __name__ == '__main__':
     
     Flags = gflags.FLAGS
     gflags.DEFINE_bool("cuda", True, "use cuda")
-    gflags.DEFINE_string("test_path", None, 'path of testing folder')
+    gflags.DEFINE_string("validate_path", None, 'path of testing folder')
     gflags.DEFINE_string("model_path", None, 'path of model')
     gflags.DEFINE_integer("batch_size", 64, "number of batch size")
     gflags.DEFINE_integer("workers", 4, "number of dataLoader workers")
     gflags.DEFINE_string("gpu_ids", "0,1,2,3", "gpu ids used to train")
     Flags(sys.argv)
 
-    if Flags.test_path == None:
+    if Flags.validate_path == None:
         print("Error, No test path!")
         sys.exit()
     
@@ -71,8 +73,8 @@ if __name__ == '__main__':
         print("Error, No model path!")
         sys.exit()
 
-    test_datas, num_classes = DatasetLoad(Flags.test_path).dataWithoutSplit()
-    test_dataGenerate = DatasetGenerate(test_datas, num_classes, transform=transforms.ToTensor(), isTest=True)
+    test_datas, num_classes = DatasetLoad(Flags.validate_path).dataWithoutSplit()
+    test_dataGenerate = DatasetGenerate(test_datas, num_classes, transform=transforms.ToTensor())
     testLoader = DataLoader(test_dataGenerate, batch_size=Flags.batch_size, shuffle=False, num_workers=Flags.workers)
 
     loss_fn = ContrastiveLoss(margin=1)
@@ -126,4 +128,5 @@ if __name__ == '__main__':
         
         print('Test loss: %f\tTest acc : %f'%(test_loss_val/len(testLoader), test_acc_val/len(testLoader)))
     
-    evaluation(all_predict, all_testlabel)
+    threshold, far, frr, eer_posi, eer_value = evaluation(all_predict, all_testlabel)
+    DrawEvaluation(threshold, far, frr, eer_posi, eer_value)
